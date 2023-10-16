@@ -3005,6 +3005,9 @@ $.ajax({
       xaxis: {
         type: "days",
         categories: hourlyAvgHours,
+        title: {
+          text: "Hour of Day",
+        },
       },
       yaxis: [
         {
@@ -3133,6 +3136,9 @@ $.ajax({
       xaxis: {
         type: "days",
         categories: hourlyAvgHours,
+        title: {
+          text: "Hour of Day",
+        },
       },
       yaxis: [
         {
