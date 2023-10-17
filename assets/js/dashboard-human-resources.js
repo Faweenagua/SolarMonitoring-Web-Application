@@ -595,14 +595,21 @@ $.ajax({
       horizontalData["windSpeedData"][index] = parseFloat(obj.windSpeed);
       horizontalData["rainFallData"][index] = parseFloat(obj.amountOfRainfall);
 
-      horizontalData["averageTemp"][index] = (
+      /* horizontalData["averageTemp"][index] = (
         (parseFloat(obj.ambientTemperaturePM) + parseFloat(obj.ambientTemp)) /
         2
+      ).toFixed(2); */
+      horizontalData["averageTemp"][index] = parseFloat(
+        obj.ambientTemperaturePM
       ).toFixed(2);
 
-      horizontalData["averageHum"][index] = (
+      /* horizontalData["averageHum"][index] = (
         (parseFloat(obj.humidity) + parseFloat(obj.ambientHumidityPM)) /
         2
+      ).toFixed(2); */
+
+      horizontalData["averageHum"][index] = parseFloat(
+        obj.ambientHumidityPM
       ).toFixed(2);
 
       horizontalData["controlPanelCurrent"][index] = parseFloat(

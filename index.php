@@ -143,7 +143,7 @@ function test_input($data) {
                       <h5 class="mb-0" id="massOfDust">7</h5>
                     </div>
                   </div>
-                <div class="" id="w-chart4"></div>
+                <div class="" id="massOfDustChart"></div>
                 </div>
               </div>
             </div>
