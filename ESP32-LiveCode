@@ -1,4 +1,4 @@
-// (New Power Measurement equation solution)
+// Live Code
 #include <Arduino.h>
 #include <SensirionI2CSen5x.h>
 #include <Wire.h>
