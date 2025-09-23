@@ -127,7 +127,7 @@ function test_input($data) {
                   <div class="d-flex align-items-center">
                     <div>
                       <p class="mb-0">Soiling Loss (%)</p>
-                      <h5 class="mb-0" id="soilingLoss">20</h5>
+                      <h5 class="mb-0" id="soilingLoss">3.2</h5>
                     </div>
                   </div>
                   <div class="" id="w-chart3"></div>
@@ -143,7 +143,7 @@ function test_input($data) {
                       <h5 class="mb-0" id="massOfDust">7</h5>
                     </div>
                   </div>
-                <div class="" id="massOfDustChart"></div>
+                <div class="" id="w-chart4"></div>
                 </div>
               </div>
             </div>
@@ -279,7 +279,7 @@ function test_input($data) {
                           <img src="assets/images/icons/electric-current.png" alt="" />
                         </div>
                         <div class="ms-2">
-                          <h6 class="mb-1">Current (mA)</h6>
+                          <h6 class="mb-1">Current (A)</h6>
                           <p class="mb-0">Average = <span id="ctrlCurrentAvg"> 1150 </span></p>
                         </div>
                       </div>
@@ -375,7 +375,7 @@ function test_input($data) {
                           <img src="assets/images/icons/electric-current.png" alt="" />
                         </div>
                         <div class="ms-2">
-                          <h6 class="mb-1">Current (mA)</h6>
+                          <h6 class="mb-1">Current (A)</h6>
                           <p class="mb-0">Average = <span id="testCurrentAvg"> 1150 </span></p>
                         </div>
                       </div>
@@ -507,7 +507,35 @@ function test_input($data) {
           <!--end row-->
 
           <div class="row">
-            <div class="col-12 col-lg-8 col-xl-8">
+            <div class="col-12 col-lg-12 col-xl-6">
+              <div class="card radius-10">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div>
+                      <h6 class="mb-2 mt-2">Average Battery Charge Current Over Time</h6>
+                    </div>
+                  </div>
+                  <div id="batteryChargeCurrentPlot"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-12 col-xl-6">
+              <div class="card radius-10">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div>
+                      <h6 class="mb-2 mt-2">Battery State of Charge Over Time</h6>
+                    </div>
+                  </div>
+                  <div id="batterySOCplot"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!--end row-->
+
+          <div class="row">
+            <div class="col-12 col-lg-12 col-xl-12">
               <div class="card radius-10 overflow-hidden">
                 <div class="card-body">
                   <div class="d-flex align-items-center">
@@ -516,34 +544,7 @@ function test_input($data) {
                     </div>
                   </div>
                   <div class="chart-container">
-                    <div id="chart700"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="col-12 col-lg-4 col-xl-4">
-              <div class="card radius-10">
-                <div class="card-body">
-                  <div class="d-flex align-items-center">
-                    <div>
-                      <h6 class="mb-0">Battery Level</h6>
-                    </div>
-                    <div class="font-22 ms-auto">
-                      <i class="bx bx-dots-horizontal-rounded"></i>
-                    </div>
-                  </div>
-                  <div
-                    class="text-center chart-container-9 d-flex align-items-center justify-content-center"
-                  >
-                    <div id="vacancies-status"></div>
-                  </div>
-                </div>
-                <div class="card-footer bg-transparent border-top">
-                  <div class="row align-items-center text-center">
-                    <div class="col">
-                      <h4 class="mb-0" id="chargingStatus">Not Charging</h4>
-                      <small class="extra-small-font"> &nbsp </small>
-                    </div>
+                    <div id="performanceRatio"></div>
                   </div>
                 </div>
               </div>
@@ -618,9 +619,11 @@ function test_input($data) {
     <script src="assets/plugins/metismenu/js/metisMenu.min.js"></script>
     <script src="assets/plugins/perfect-scrollbar/js/perfect-scrollbar.js"></script>
     <script src="assets/plugins/apexcharts-bundle/js/apexcharts.min.js"></script>
-    <script src="assets/js/dashboard-human-resources.js"></script>
+    <script src="assets/js/dashboard.js"></script>
     <script src="assets/js/widgets.js"></script>
-    <script src="assets/js/dashboard-eCommerce.js"></script>
+    <script src="assets/js/index.js"></script>
+
+    <!-- <script src="assets/js/dashboard-eCommerce.js"></script> -->
     <!--app JS-->
     <script src="assets/js/app.js"></script>
 

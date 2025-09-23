@@ -15,23 +15,23 @@ $db = new Database();
 
 $mydata = [];
 
-$query1 = "SELECT * FROM feedshknsdbkernjjn ORDER BY ID DESC";
+$query1 = "SELECT * FROM massofdustrecordsalkdsj WHERE accountID = $accountID ORDER BY ID DESC";
 $dataRangeName = " ";
 
 if(isset($_GET['range'])){
     $dataRange = $_GET['range'];
 
     if($dataRange == 0){
-        $query1 = "SELECT * FROM feedshknsdbkernjjn WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 7 DAY) <= datetimeFed ORDER BY ID DESC";
+        $query1 = "SELECT * FROM massofdustrecordsalkdsj WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 7 DAY) <= dateAdded ORDER BY ID DESC";
         $dataRangeName = "Last 7 Days";
     } else if($dataRange == 1){
-        $query1 = "SELECT * FROM feedshknsdbkernjjn WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 14 DAY) <= datetimeFed ORDER BY ID DESC";
+        $query1 = "SELECT * FROM massofdustrecordsalkdsj WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 14 DAY) <= dateAdded ORDER BY ID DESC";
         $dataRangeName = "Last 14 Days";
     }else if($dataRange == 2){
-        $query1 = "SELECT * FROM feedshknsdbkernjjn WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 30 DAY) <= datetimeFed ORDER BY ID DESC";
+        $query1 = "SELECT * FROM massofdustrecordsalkdsj WHERE accountID = $accountID AND DATE_SUB(CURDATE(),INTERVAL 30 DAY) <= dateAdded ORDER BY ID DESC";
         $dataRangeName = "Last 30 Days";
     }else{
-        $query1 = "SELECT * FROM feedshknsdbkernjjn WHERE accountID = $accountID ORDER BY ID DESC";
+        $query1 = "SELECT * FROM massofdustrecordsalkdsj WHERE accountID = $accountID ORDER BY ID DESC";
         $dataRangeName = "All Data";
     }
 }
@@ -48,19 +48,21 @@ if($results = $db->select($query1)){
  
     if($results->num_rows > 0){ 
         $delimiter = ","; 
-        $filename = $dataRangeName."-feed-data_" . date('Y-m-d_H-i-s') . ".csv"; 
+        $filename = $dataRangeName."-dust-data_" . date('Y-m-d_H-i-s') . ".csv"; 
         
         // Create a file pointer 
         $f = fopen('php://memory', 'w'); 
         
         // Set column headers 
-        $fields = array('#', 'Full Name', 'Feed', 'Comment', 'Date and Time Fed'); 
-        fputcsv($f, $fields, $delimiter); 
+        $fields = array('#', 'Dust_Mass[g]', 'Date_Recorded', 'Time_Recorded'); 
+        fputcsv($f, $fields, $delimiter);
         
         // Output each row of the data, format line as csv and write to file pointer 
         while($row = $results->fetch_assoc()){ 
             //$status = ($row['status'] == 1)?'Active':'Inactive'; 
-            $lineData = array($rowNumber, $row['fullName'], $row['feed'], $row['comment'], $row['datetimeFed']); 
+            $mydate=date_create($row['dateAdded']);
+            $lineData = array($rowNumber, $row['massOfDust'], date_format($mydate,"Y/m/d"), date_format($mydate,"H:i")); 
+            
             fputcsv($f, $lineData, $delimiter); 
             $rowNumber++;
         } 
@@ -74,6 +76,7 @@ if($results = $db->select($query1)){
         
         //output all remaining data on a file pointer 
         fpassthru($f); 
+        exit;
     }else{
         header("Location: index.php?alert=2");
         exit;

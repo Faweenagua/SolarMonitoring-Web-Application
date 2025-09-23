@@ -7,8 +7,6 @@
 
     date_default_timezone_set('GMT');
 
-    $dt = date("Y-m-d H:i:s");
-
 
     $userID = 1;
     $deviceID = -1;
@@ -61,15 +59,6 @@
     $corrPerformanceRatioControl = 0;
     $corrPerformanceRatioTest = 0;
     $daysAgo = 7;
-    $relayTickCounter = 0;
-    $batteryChargePercentTest = -1;
-    $batteryChargePercentControl = -1;
-    $calcIndexControl = -1;
-    $instIndexControl = -1;
-    $efficiencyControl = -1;
-    $calcIndexTest = -1;
-    $instIndexTest = -1;
-    $efficiencyTest = -1;
 
 
     
@@ -77,113 +66,95 @@
 
     $userID = 1;
     $deviceID = "xxv233";
-    // $massOfDust = rand(0,100);
-    // $tempOfPanelControl = rand(0,100);
-    // $tempOfPanelTest = rand(0,100);
-    // $ambientTemp = rand(0,100);
-    // $humidity = rand(0,100);
-    // $panelCurrentControl = rand(0,100);
-    // $panelCurrentTest = rand(0,100);
-    // $chargeControlCurrentControl = rand(0,100);
-    // $chargeControlCurrentTest = rand(0,100);
-    // $panelVoltageControl = rand(0,100);
-    // $panelVoltageTest = rand(0,100);
-    // $chargeControlVoltageControl = rand(0,100);
-    // $chargeControlVoltageTest = rand(0,100);
-    // $charging = rand(0,1);
+    $massOfDust = rand(0,100);
+    $tempOfPanelControl = rand(0,100);
+    $tempOfPanelTest = rand(0,100);
+    $ambientTemp = rand(0,100);
+    $humidity = rand(0,100);
+    $panelCurrentControl = rand(0,100);
+    $panelCurrentTest = rand(0,100);
+    $chargeControlCurrentControl = rand(0,100);
+    $chargeControlCurrentTest = rand(0,100);
+    $panelVoltageControl = rand(0,100);
+    $panelVoltageTest = rand(0,100);
+    $chargeControlVoltageControl = rand(0,100);
+    $chargeControlVoltageTest = rand(0,100);
+    $charging = rand(0,1);
     $deviceLocalTime = date("Y-m-d  H:i:s",time());
     $accountID = 1;
-    // $massConcentrationPm1p0 = rand(0,100);
-    // $massConcentrationPm2p5 = rand(0,100);
-    // $massConcentrationPm4p0 = rand(0,100);
-    // $massConcentrationPm10p0 = rand(0,100);
-    // $ambientHumidityPM = rand(0,100);
-    // $ambientTemperaturePM = rand(0,100);
-    // $windDirection = rand(0,360);
-    // $windSpeed = rand(0,100);
-    // $amountOfRainfall = rand(0,100);
-    // $panelPowerControl = rand(0,100);
-    // $panelPowerTest = rand(0,100);
-    // $chargeControlPowerControl = rand(0,100);
-    // $chargeControlPowerTest = rand(0,100);
-    // $irradiance = rand(0,100);
+    $massConcentrationPm1p0 = rand(0,100);
+    $massConcentrationPm2p5 = rand(0,100);
+    $massConcentrationPm4p0 = rand(0,100);
+    $massConcentrationPm10p0 = rand(0,100);
+    $ambientHumidityPM = rand(0,100);
+    $ambientTemperaturePM = rand(0,100);
+    $windDirection = rand(0,360);
+    $windSpeed = rand(0,100);
+    $amountOfRainfall = rand(0,100);
+    $panelPowerControl = rand(0,100);
+    $panelPowerTest = rand(0,100);
+    $chargeControlPowerControl = rand(0,100);
+    $chargeControlPowerTest = rand(0,100);
+    $irradiance = rand(0,100);
     
     
-    if(isset($_POST['user_id'])){
-        $userID = test_input($_POST['user_id']);
+    if(isset($_GET['user_id'])){
+        $userID = test_input($_GET['user_id']);
     }
-    if(isset($_POST['device_id'])){
-        $deviceID = test_input($_POST['device_id']);
+    if(isset($_GET['device_id'])){
+        $deviceID = test_input($_GET['device_id']);
     }
-    if(isset($_POST['massOfDust'])){
-        //$ch4ConcValue = $_POST['methaneC'];
+    if(isset($_GET['massOfDust'])){
+        //$ch4ConcValue = $_GET['methaneC'];
         $massOfDust =  rand(5,90);;
 
     }
-    if(isset($_POST['panelVoltageTest'])){
-        $tempOfPanelControl = test_input($_POST['tempOfPanelControl']);
-        $tempOfPanelTest = test_input($_POST['tempOfPanelTest']);
-        $ambientTemp = test_input($_POST['ambientTemp']);
-        $humidity = test_input($_POST['humidity']);
-        $panelCurrentControl = abs(test_input($_POST['panelCurrentControl']));
-        $panelCurrentTest = abs(test_input($_POST['panelCurrentTest']));
-        $chargeControlCurrentControl = abs(test_input($_POST['chargeControlCurrentControl']));
-        $chargeControlCurrentTest = abs(test_input($_POST['chargeControlCurrentTest']));
-        $panelVoltageControl = test_input($_POST['panelVoltageControl']);
-        $panelVoltageTest = test_input($_POST['panelVoltageTest']);
-        $chargeControlVoltageControl = test_input($_POST['chargeControlVoltageControl']);
-        $chargeControlVoltageTest = test_input($_POST['chargeControlVoltageTest']);
-        // $charging = test_input($_POST['charging']);
-        $massConcentrationPm1p0 = test_input($_POST['massConcentrationPm1p0']);
-        $massConcentrationPm2p5 = test_input($_POST['massConcentrationPm2p5']);
-        $massConcentrationPm4p0 = test_input($_POST['massConcentrationPm4p0']);
-        $massConcentrationPm10p0 = test_input($_POST['massConcentrationPm10p0']);
-        $ambientHumidityPM = test_input($_POST['ambientHumidityPM']);
-        $ambientTemperaturePM = test_input($_POST['ambientTemperaturePM']);
-        $windDirection = test_input($_POST['windDirection']);
-        $windSpeed = test_input($_POST['windSpeed']);
-        $amountOfRainfall = test_input($_POST['amountOfRainfall']);
-        $panelPowerControl = test_input($_POST['panelPowerControl']);
-        $panelPowerTest = test_input($_POST['panelPowerTest']);
-        $chargeControlPowerControl = test_input($_POST['chargeControlPowerControl']);
-        $chargeControlPowerTest = test_input($_POST['chargeControlPowerTest']);
-        $irradiance = test_input($_POST['irradiance']);
-        $relayTickCounter = test_input($_POST['relayTickCounter']);
-        $batteryChargePercentTest = test_input($_POST['batteryChargePercentTest']);
-        $batteryChargePercentControl = test_input($_POST['batteryChargePercentControl']);
-
-        //New testing values
-        $calcIndexControl = test_input($_POST['calcIndexControl']);
-        $instIndexControl = test_input($_POST['instIndexControl']);
-        $efficiencyControl = test_input($_POST['efficiencyControl']);
-        $calcIndexTest = test_input($_POST['calcIndexTest']);
-        $instIndexTest = test_input($_POST['instIndexTest']);
-        $efficiencyTest = test_input($_POST['efficiencyTest']);
-
-        echo "Battery Charge Percent Test: " . $batteryChargePercentTest;
-        echo "<br>";
-        echo "Battery Charge Percent Control: " . $batteryChargePercentControl;
-        echo "Efficiency Control: " . $efficiencyControl;
-        echo "Efficiency Test: " . $efficiencyTest;
-
+    if(isset($_GET['tempOfPanelControl'])){
+        $tempOfPanelControl = test_input($_GET['tempOfPanelControl']);
+        $tempOfPanelTest = test_input($_GET['tempOfPanelTest']);
+        $ambientTemp = test_input($_GET['ambientTemp']);
+        $humidity = test_input($_GET['humidity']);
+        $panelCurrentControl = abs(test_input($_GET['panelCurrentControl']));
+        $panelCurrentTest = abs(test_input($_GET['panelCurrentTest']));
+        $chargeControlCurrentControl = abs(test_input($_GET['chargeControlCurrentControl']));
+        $chargeControlCurrentTest = abs(test_input($_GET['chargeControlCurrentTest']));
+        $panelVoltageControl = test_input($_GET['panelVoltageControl']);
+        $panelVoltageTest = test_input($_GET['panelVoltageTest']);
+        $chargeControlVoltageControl = test_input($_GET['chargeControlVoltageControl']);
+        $chargeControlVoltageTest = test_input($_GET['chargeControlVoltageTest']);
+        // $charging = test_input($_GET['charging']);
+        $massConcentrationPm1p0 = test_input($_GET['massConcentrationPm1p0']);
+        $massConcentrationPm2p5 = test_input($_GET['massConcentrationPm2p5']);
+        $massConcentrationPm4p0 = test_input($_GET['massConcentrationPm4p0']);
+        $massConcentrationPm10p0 = test_input($_GET['massConcentrationPm10p0']);
+        $ambientHumidityPM = test_input($_GET['ambientHumidityPM']);
+        $ambientTemperaturePM = test_input($_GET['ambientTemperaturePM']);
+        $windDirection = test_input($_GET['windDirection']);
+        $windSpeed = test_input($_GET['windSpeed']);
+        $amountOfRainfall = test_input($_GET['amountOfRainfall']);
+        $panelPowerControl = test_input($_GET['panelPowerControl']);
+        $panelPowerTest = test_input($_GET['panelPowerTest']);
+        $chargeControlPowerControl = test_input($_GET['chargeControlPowerControl']);
+        $chargeControlPowerTest = test_input($_GET['chargeControlPowerTest']);
+        $irradiance = test_input($_GET['irradiance']);
         
     }
     
-    if(isset($_POST['deviceLocalTime'])){
-        $deviceLocalTime = test_input($_POST['deviceLocalTime']);
+    if(isset($_GET['deviceLocalTime'])){
+        $deviceLocalTime = test_input($_GET['deviceLocalTime']);
     }
-    if(isset($_POST['deviceLocalDate'])){
-        $deviceLocalTime = test_input($_POST['deviceLocalDate']) . " " . $deviceLocalTime;
+    if(isset($_GET['deviceLocalDate'])){
+        $deviceLocalTime = test_input($_GET['deviceLocalDate']) . " " . $deviceLocalTime;
     }
 
-    if(isset($_POST['userKey'])){
-        $userKey = test_input($_POST['userKey']);
+    if(isset($_GET['userKey'])){
+        $userKey = test_input($_GET['userKey']);
     }
 
     $deviceTime = new DateTime($deviceLocalTime);
 
     $startTime = new DateTime("2009-10-11 18:00:00");
-    $endTime = new DateTime("2009-10-11 18:03:00");
+    $endTime = new DateTime("2009-10-11 18:05:00");
 
     $deviceTimeTime =  $deviceTime->format("H:i:s");
     $endTimeTime =  $endTime->format("H:i:s");
@@ -198,19 +169,19 @@
     }else{
         $userID = $userIDResponse->fetch_assoc()['accountID'];
         $accountID = $userID;
-        $sql = "INSERT INTO `sensordatarecords` ".
-                "(`userID`, `deviceID`, `massOfDust`, `tempOfPanelControl`, `tempOfPanelTest`, `ambientTemp`, `humidity`, `panelCurrentControl`, `panelCurrentTest`, `chargeControlCurrentControl`, `chargeControlCurrentTest`, `panelVoltageControl`, `panelVoltageTest`, `chargeControlVoltageControl`, `chargeControlVoltageTest`,`massConcentrationPm1p0`, `massConcentrationPm2p5`, `massConcentrationPm4p0`, `massConcentrationPm10p0`, `ambientHumidityPM`, `ambientTemperaturePM`, `windDirection`, `windSpeed`, `amountOfRainfall`, `panelPowerControl`, `panelPowerTest`, `chargeControlPowerControl`, `chargeControlPowerTest`, `irradiance`, `relayTickCounter`, `charging`, `deviceLocalTime`,`serverTime`, `accountID`,`batteryChargePercentTest`, `batteryChargePercentControl`, `calcIndexControl`, `instIndexControl`, `efficiencyControl`, `calcIndexTest`, `instIndexTest`, `efficiencyTest`) "."VALUES ".
-                "('$userID', '$deviceID', '$massOfDust', '$tempOfPanelControl', '$tempOfPanelTest', '$ambientTemp', '$humidity', '$panelCurrentControl', '$panelCurrentTest', '$chargeControlCurrentControl', '$chargeControlCurrentTest', '$panelVoltageControl', '$panelVoltageTest', '$chargeControlVoltageControl', '$chargeControlVoltageTest', '$massConcentrationPm1p0', '$massConcentrationPm2p5', '$massConcentrationPm4p0', '$massConcentrationPm10p0', '$ambientHumidityPM', '$ambientTemperaturePM', '$windDirection', '$windSpeed', '$amountOfRainfall', '$panelPowerControl', '$panelPowerTest', '$chargeControlPowerControl', '$chargeControlPowerTest', '$irradiance', '$relayTickCounter', '$charging', '$deviceLocalTime', '$dt', '$userID', '$batteryChargePercentTest', '$batteryChargePercentControl', '$calcIndexControl', '$instIndexControl', '$efficiencyControl', '$calcIndexTest', '$instIndexTest', '$efficiencyTest')";
+        // $sql = "INSERT INTO `sensordatarecords` ".
+        //         "(`userID`, `deviceID`, `massOfDust`, `tempOfPanelControl`, `tempOfPanelTest`, `ambientTemp`, `humidity`, `panelCurrentControl`, `panelCurrentTest`, `chargeControlCurrentControl`, `chargeControlCurrentTest`, `panelVoltageControl`, `panelVoltageTest`, `chargeControlVoltageControl`, `chargeControlVoltageTest`,`massConcentrationPm1p0`, `massConcentrationPm2p5`, `massConcentrationPm4p0`, `massConcentrationPm10p0`, `ambientHumidityPM`, `ambientTemperaturePM`, `windDirection`, `windSpeed`, `amountOfRainfall`, `panelPowerControl`, `panelPowerTest`, `chargeControlPowerControl`, `chargeControlPowerTest`, `irradiance`, `charging`, `deviceLocalTime`, `accountID`) "."VALUES ".
+        //         "('$userID', '$deviceID', '$massOfDust', '$tempOfPanelControl', '$tempOfPanelTest', '$ambientTemp', '$humidity', '$panelCurrentControl', '$panelCurrentTest', '$chargeControlCurrentControl', '$chargeControlCurrentTest', '$panelVoltageControl', '$panelVoltageTest', '$chargeControlVoltageControl', '$chargeControlVoltageTest', '$massConcentrationPm1p0', '$massConcentrationPm2p5', '$massConcentrationPm4p0', '$massConcentrationPm10p0', '$ambientHumidityPM', '$ambientTemperaturePM', '$windDirection', '$windSpeed', '$amountOfRainfall', '$panelPowerControl', '$panelPowerTest', '$chargeControlPowerControl', '$chargeControlPowerTest', '$irradiance', '$charging', '$deviceLocalTime', '$userID')";
 
-        if($db->insert($sql)){
-            echo "Success";
-        }else {
-            echo "Failed to upload data";
-        }
+        // if($db->insert($sql)){
+        //     echo "Success";
+        // }else {
+        //     echo "Failed to upload data";
+        // }
     }
     
 
-    // perform calculation bewtween 6:00 to 6:03
+
     if($deviceTimeTime > $startTimeTime && $deviceTimeTime < $endTimeTime){
 
         $totalControlPower = 0;
@@ -245,7 +216,7 @@
 
             if($controlMaxPower > 0 && $testMaxPower > 0){
                 $soilingRatio = $testMaxPower/$controlMaxPower;
-                $soilingLoss = abs(1 - $soilingRatio)*100;
+                $soilingLoss = 1 - $soilingRatio;
             }
 
 
