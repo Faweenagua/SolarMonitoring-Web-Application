@@ -1,8 +1,8 @@
-// Live Code
+// ASMONET ON BOARD ESP32 CODE V3.0
 #include <Arduino.h>
 #include <SensirionI2CSen5x.h>
 #include <Wire.h>
-#include <ADSWeather.h>
+//#include <ADSWeather.h>
 #include <HTTPClient.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -13,6 +13,11 @@
 #include "INA226.h"
 #include "RTClib.h"
 #include <ModbusMaster.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+#include <SoftwareSerial.h>
+
+
 
 #define HSPI_MISO   32
 #define HSPI_MOSI   13
@@ -89,6 +94,22 @@ TinyGsmClient client(modem);
 #define BLUELED 26
 volatile int greenState = 0;
 
+///......OLED Display......///
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+/// storing the last few log lines
+#define OLED_LINE_CHARS 21
+#define MAX_LINES 6
+String logBuffer[MAX_LINES];
+
+int devicesTotal = 0;
+int devicesActive = 0;
+String failedDevices = "";
+
 
 
 ////............Relay Module...............///
@@ -137,7 +158,7 @@ const String URL = "http://www.solar.arelashesi.com/insertData2Cloud.php?";
 String userID = "0";
 String deviceID = "xxv233";
 float massOfDustOnPanel = 0.0;
-float irradiance = 0.0;
+
 
 bool GSMConnectionStatus = false;
 String localData = "";
@@ -167,6 +188,7 @@ String timeSend = "";
 // Timer variables
 String dataMessage;
 unsigned long epochTime = 0;
+bool checkSD(bool verbose = true);
 
 
 
@@ -288,30 +310,6 @@ float noxIndex;
 // SHTSensor sht(SHTSensor::SHT3X);
 
 
-////..........Weather Station........//
-
-#define ANEMOMETER_PIN 34
-#define VANE_PIN 36
-#define RAIN_PIN 35
-
-#define CALC_INTERVAL 1000
-
-unsigned long nextCalc;
-unsigned long timer;
-
-
-float rainAmount;
-long windDirection;
-int windGust;
-float windSpeedD;
-
-ADSWeather ws1(RAIN_PIN, VANE_PIN, ANEMOMETER_PIN); //This should configure all pins correctly
-
-/// -------- Preferences ----------///
-// Preferences preferences;
-
-float amountOfRainPref;
-float dayOfLastPref;
 
 
 
@@ -326,6 +324,30 @@ unsigned long cpmill = 0;
 unsigned long ccpmill = 0;
 unsigned long tpmill = 0;
 unsigned long ttpmill = 0;
+
+
+// --- Datalogger Serial (CR1000X) ---
+EspSoftwareSerial::UART DataSerial;   // create a software UART object
+#define DATALOGGER_RX 35              // RX pin from CR1000X TX
+#define DATALOGGER_BAUD 9600      // must match SerialOpen(ComC7,...) on logger
+
+float irradiance = 0.0;       // Parsed irradiance value (W/m²)
+String irradianceTimestamp = "";  // Parsed timestamp from datalogger
+
+////..........Weather Station Placeholder values........//
+
+unsigned long nextCalc;
+unsigned long timer;
+
+
+float rainAmount;
+long windDirection;
+int windGust;
+float windSpeedD;
+
+
+
+
 
 
 
@@ -350,17 +372,37 @@ void setup() {
 
     Wire.begin();
 
+
+    //-------------OLED--------//
+
+  // --- OLED Init ---
+    if (!display.begin(0x3C, true)) {
+      Serial.println("OLED init failed");
+    } else {
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(SH110X_WHITE);
+      display.setCursor(0,0);
+      display.println("OLED Ready");
+      display.display();
+      delay(1000);
+    }
+
     ///..........PM SENSOR.........////
 
     sen5x.begin(Wire);
 
+    bool pmOk = true;   // good until a step fails
     uint16_t error;
     char errorMessage[256];
+
     error = sen5x.deviceReset();
     if (error) {
         Serial.print("Error trying to execute deviceReset(): ");
         errorToString(error, errorMessage, 256);
         Serial.println(errorMessage);
+        logToOLED("PM reset error");
+        pmOk = false;
     }
 
     // Print SEN55 module information if i2c buffers are large enough
@@ -393,10 +435,14 @@ void setup() {
         Serial.print("Error trying to execute setTemperatureOffsetSimple(): ");
         errorToString(error, errorMessage, 256);
         Serial.println(errorMessage);
+        logToOLED("PM Temp Offset error");
+        pmOk = false;
     } else {
         Serial.print("Temperature Offset set to ");
         Serial.print(tempOffset);
         Serial.println(" deg. Celsius (SEN54/SEN55 only");
+        logToOLED("PM Temp offset OK");
+        logToOLED(String(tempOffset));
     }
 
     // Start Measurement
@@ -405,58 +451,88 @@ void setup() {
         Serial.print("Error trying to execute startMeasurement(): ");
         errorToString(error, errorMessage, 256);
         Serial.println(errorMessage);
+        logToOLED("PM Start Measurement Error");
+        pmOk = false;
+    } else{
+      logToOLED("PM Measurement Started");
+    }
+
+    devicesTotal++;
+    if (pmOk) {
+        devicesActive++;
+    } else {
+        failedDevices += "PM Sensor, ";
     }
 
 
     ////..........INA226............//
     // Initialize the INA226.
-    if (!controlPanel.begin() )
-    {
+    
+    bool inaCtrlPanelOk       = controlPanel.begin();
+    bool inaCtrlChargeOk      = controlChargeController.begin();
+    bool inaTestPanelOk       = testPanel.begin();
+    bool inaTestChargeOk      = testChargeController.begin();
+
+    if (!inaCtrlPanelOk) {
       Serial.println("controlPanel could not connect. Fix and Reboot");
+      logToOLED("INA226 controlPanel Error");
+      failedDevices += "INA226 controlPanel, ";
     }
-    if (!controlChargeController.begin() )
-    {
+    devicesTotal++;
+    if (inaCtrlPanelOk) devicesActive++;
+
+    if (!inaCtrlChargeOk) {
       Serial.println("controlChargeController could not connect. Fix and Reboot");
+      logToOLED("INA226 controlChargeController Error");
+      failedDevices += "INA226 controlChargeController, ";
     }
-    if (!testPanel.begin() )
-    {
+    devicesTotal++;
+    if (inaCtrlChargeOk) devicesActive++;
+
+    if (!inaTestPanelOk) {
       Serial.println("testPanel could not connect. Fix and Reboot");
+      logToOLED("INA226 testPanel Error");
+      failedDevices += "INA226 testPanel, ";
     }
-    if (!testChargeController.begin() )
-    {
+    devicesTotal++;
+    if (inaTestPanelOk) devicesActive++;
+
+    if (!inaTestChargeOk) {
       Serial.println("testChargeController could not connect. Fix and Reboot");
+      logToOLED("INA226 testChargeController Error");
+      failedDevices += "INA226 testChargeController, ";
     }
+    devicesTotal++;
+    if (inaTestChargeOk) devicesActive++;
+
+    
     controlPanel.setMaxCurrentShunt(1, 0.002);
     controlChargeController.setMaxCurrentShunt(1, 0.002);
     testPanel.setMaxCurrentShunt(1, 0.002);
     testChargeController.setMaxCurrentShunt(1, 0.002);
 
 
-    ////..................ModBus......................////
-    // Initialize RS485 Communication
-  Serial.begin(9600); // Debug Serial Monitor
-
-  // Initialize RS485 Communication with default pins (Slave 1)
-  RS485.begin(9600, SERIAL_8N1, RS485_RX_SLAVE_1, RS485_TX_SLAVE_1); // Set baud rate and pins for Slave 1
-  node.begin(1, RS485); // Initialize Modbus for Slave 1
-
-  Serial.println("Setup complete. Starting data acquisition...");
 
 
-    ///..........Weather Station Initialization..........//
 
-    attachInterrupt(digitalPinToInterrupt(RAIN_PIN), ws1.countRain, FALLING); //ws1.countRain is the ISR for the rain gauge.
-    attachInterrupt(digitalPinToInterrupt(ANEMOMETER_PIN), ws1.countAnemometer, FALLING); //ws1.countAnemometer is the ISR for the anemometer.
-    nextCalc = millis() + CALC_INTERVAL;
 
 
     ///..........SHT35 Initialization..........//
-    if (sht.init()) {
+    bool shtOk = sht.init();
+    if (shtOk) {
         Serial.print("init(): success\n");
+        logToOLED("SHT35 init success");
+        devicesActive++;
     } else {
         Serial.print("init(): failed\n");
+        logToOLED("SHT35 init failed");
+        failedDevices += "SHT35, ";
     }
-    sht.setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM); // only supported by SHT3x
+    devicesTotal++;
+    if (shtOk) {
+        sht.setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM); // only supported by SHT3x
+    }
+
 
 
     //----------------TEMP PROBES--------------------//
@@ -466,18 +542,34 @@ void setup() {
     // Grab a count of devices on the wire
     numberOfDevices = sensors.getDeviceCount();
 
+    devicesTotal++;
+    if (numberOfDevices > 0) {
+        devicesActive++;
+    } else {
+        failedDevices += "DS18B20, ";
+    }
+
+
     // method 1: by index
-    if (!sensors.getAddress(controlPanelThermometer, 0)) Serial.println("Unable to find address for Device 0");
-    if (!sensors.getAddress(testPanelThermometer, 1)) Serial.println("Unable to find address for Device 1");
+    if (!sensors.getAddress(controlPanelThermometer, 0)) {
+        Serial.println("Unable to find address for Device 0");
+        logToOLED("DS18B20 Dev0 not found");
+    }
+    if (!sensors.getAddress(testPanelThermometer, 1)) {
+        Serial.println("Unable to find address for Device 1");
+        logToOLED("DS18B20 Dev1 not found");
+    }
 
     // show the addresses we found on the bus
     Serial.print("Device 0 Address: ");
     printAddress(controlPanelThermometer);
     Serial.println();
+    logToOLED("DS18B20 Dev0 Addr OK");
 
     Serial.print("Device 1 Address: ");
     printAddress(testPanelThermometer);
     Serial.println();
+    logToOLED("DS18B20 Dev1 Addr OK");
 
     // set the resolution to 9 bit per device
     sensors.setResolution(controlPanelThermometer, TEMPERATURE_PRECISION);
@@ -486,32 +578,49 @@ void setup() {
     Serial.print("Device 0 Resolution: ");
     Serial.print(sensors.getResolution(controlPanelThermometer), DEC);
     Serial.println();
+    logToOLED("DS18B20 Dev0 Res set");
 
     Serial.print("Device 1 Resolution: ");
     Serial.print(sensors.getResolution(testPanelThermometer), DEC);
     Serial.println();
+    logToOLED("DS18B20 Dev1 Res set");
 
     // locate devices on the bus
     Serial.print("Locating devices...");
     Serial.print("Found ");
     Serial.print(numberOfDevices, DEC);
     Serial.println(" devices.");
+    logToOLED("Found " + String(numberOfDevices) + " DS18B20");
+
 
 
     ////..........SD Card............//
 
     setupSDCard();
-  
-    // If the data.txt file doesn't exist
+    checkSD();   // verify SD is working after initial mount
+
+    devicesTotal++;
+    if (!SD.begin(HSPI_SS, hspi)) {
+       failedDevices += "SD Card, ";
+    } else {
+       devicesActive++;
+    }
+
+
+
+    
     // Create a file on the SD card and write the data labels
     File file = SD.open("/data.txt");
     if(!file) {
       Serial.println("File doesn't exist");
+      logToOLED("SD: data.txt missing");
       Serial.println("Creating file...");
-      writeFile(SD, "/data.txt", "Epoch Time, User ID, Device ID, controlPanelTemperature_*C, testPanelTemperature_*C, shtTemperature_*C, shtHumidity_%, panelCurrentTest_mA, chargeControlCurrentTest_A, panelCurrentControl_mA, chargeControlCurrentControl_A, inachargeControlCurrentControl_mA, inachargeControlCurrentTest_mA, inapanelVoltageControl_V, panelVoltageControl_V, inapanelVoltageTest_V, panelVoltageTest_V, inachargeControlVoltageControl_V,chargeControlVoltageControl_V, inachargeControlVoltageTest_V,chargeControlVoltageTest_V, massConcentrationPm1p0_µg/m^3, massConcentrationPm2p5_µg/m^3, massConcentrationPm4p0_µg/m^3, massConcentrationPm10p0_µg/m^3, ambientHumidity_%, ambientTemperature_*C, windDirection_Degrees, windSpeedD_m/s, rainAmount_mm, panelPowerControl_mW, chargeControlPowerControl_W, panelPowerTest_mW, chargeControlPowerTest_W, inachargeControlPowerControl_mW, inachargeControlPowerTest_mW, irradiance_W/m2, relayTickCounter, timeSend, dateSend, vocIndex, noxIndex \r\n");
+      logToOLED("SD: Creating data.txt");
+      writeFile(SD, "/data.txt", "Epoch Time, Device_id, Temperature, Humidity, Panel1Current, Panel1Voltage, Panel1Power, Panel2Current, Panel2Voltage, Panel2Power, Panel3Current, Panel3Voltage, Panel3Power, Panel4Current, Panel4Voltage, Panel4Power, PM_1, PM_2_5, PM_4, PM_10, VOC, NOx \r\n");
     }
     else {
       Serial.println("File already exists");  
+      logToOLED("SD: data.txt exists");
     }
     file.close();
 
@@ -521,90 +630,229 @@ void setup() {
     File fileLocalData = SD.open("/localdata.txt");
     if(!fileLocalData) {
       Serial.println("File doesn't exist");
+      logToOLED("SD: localdata.txt missing");
       Serial.println("Creating file...");
-      // writeFile(SD, "/data.txt", "Epoch Time, Device_id, Temperature, Humidity, Panel1Current, Panel1Voltage, Panel1Power, Panel2Current, Panel2Voltage, Panel2Power, Panel3Current, Panel3Voltage, Panel3Power, Panel4Current, Panel4Voltage, Panel4Power, PM_1, PM_2_5, PM_4, PM_10, VOC, NOx \r\n");
+      logToOLED("SD: Creating localdata.txt");
+      writeFile(SD, "/localdata.txt", "Epoch Time, Device_id, Temperature, Humidity, Panel1Current, Panel1Voltage, Panel1Power, Panel2Current, Panel2Voltage, Panel2Power, Panel3Current, Panel3Voltage, Panel3Power, Panel4Current, Panel4Voltage, Panel4Power, PM_1, PM_2_5, PM_4, PM_10, VOC, NOx \r\n");
     }
     else {
       Serial.println("File already exists");  
+      logToOLED("SD: localdata.txt exists");
     }
     fileLocalData.close();
 
 
+
     ////..........RTC Module............//
 
-    if (! rtc.begin()) {
+    bool rtcOk = rtc.begin();
+
+
+    if (!rtcOk) {
       Serial.println("Couldn't find RTC");
+      logToOLED("RTC not found");
+      failedDevices += "RTC, ";
       Serial.flush();
       // while (1) delay(10);
     }
+    devicesTotal++;
+    if (rtcOk) devicesActive++;
 
     if (rtc.lostPower()) {
       Serial.println("RTC lost power, let's set the time!");
+      logToOLED("RTC lost power");
       // When time needs to be set on a new device, or after a power loss, the
       // following line sets the RTC to the date & time this sketch was compiled
-//      rtc.adjust(DateTime(F(DATE), F(TIME)));
+    //  rtc.adjust(DateTime(F(DATE), F(TIME)));
       // This line sets the RTC with an explicit date & time, for example to set
       // January 21, 2014 at 3am you would call:
-       rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-    }
-
-
-
-  ///..........GSM Connection..........//
-  
-  // Set modem reset, enable, power pins
-  pinMode(MODEM_PWKEY, OUTPUT);
-  pinMode(MODEM_RST, OUTPUT);
-  pinMode(MODEM_POWER_ON, OUTPUT);
-  digitalWrite(MODEM_PWKEY, LOW);
-  digitalWrite(MODEM_RST, HIGH);
-  digitalWrite(MODEM_POWER_ON, HIGH);
-
-  // Set GSM module baud rate and UART pins
-  SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  delay(3000);
-
-  // Restart SIM800 module, it takes quite some time
-  // To skip it, call init() instead of restart()
-  Serial.println("Initializing modem...");
-  // modem.init();
-  GSMConnectionStatus = modem.restart();
-  // use modem.init() if you don't need the complete restart
-
-  delay(10000);
-
-  // Unlock your SIM card with a PIN if needed
-  if (strlen(simPIN) && modem.getSimStatus() != 3 ) {
-    modem.simUnlock(simPIN);
-  }
-
-
-  // Turn off network status lights to reduce current consumption
-  turnOffNetlight();
-
-  ///..........Control LED Indicators..........//
-  onBlue();
-  onGreen();
-
-
-  ///..........Transmit Local Data To Server..........//
-  checkAndSendLocalDataToServer();
-
-  ///...............Deep Sleep............//
-  //    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  //    Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
-
-  // Wait for weather station to stabilize
-  for(int i = 0; i<60; i++){
-      ///..........Weather Station..........//  
-    readWeatherStationData();
-    delay(1000);
-  }
+      rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
 }
 
 
 
-//int ccount = 0;
+    ////..................ModBus......................////
+    // Initialize RS485 Communication
+    Serial.begin(9600); // Debug Serial Monitor
+
+    // --- Slave 1: Test Charge Controller ---
+    RS485.begin(9600, SERIAL_8N1, RS485_RX_SLAVE_1, RS485_TX_SLAVE_1);
+    node.begin(1, RS485);
+
+    devicesTotal++;
+    uint8_t mbResult = node.readHoldingRegisters(PANEL_VOLTAGE, 1);
+    if (mbResult == node.ku8MBSuccess) {
+        devicesActive++;
+        Serial.println("Modbus TestChrg (Slave1) OK");
+        logToOLED("Modbus TestChrg OK");
+    } else {
+        Serial.println("Modbus TestChrg (Slave1) Error");
+        logToOLED("Modbus TestChrg Error");
+        failedDevices += "Modbus TestChrg, ";
+    }
+
+    // --- Slave 2: Control Charge Controller ---
+    RS485.end();
+    delay(50);
+    RS485.begin(9600, SERIAL_8N1, RS485_RX_SLAVE_2, RS485_TX_SLAVE_2);
+    node.begin(2, RS485);
+
+    devicesTotal++;
+    mbResult = node.readHoldingRegisters(PANEL_VOLTAGE, 1);
+    if (mbResult == node.ku8MBSuccess) {
+        devicesActive++;
+        Serial.println("Modbus CtrlChrg (Slave2) OK");
+        logToOLED("Modbus CtrlChrg OK");
+    } else {
+        Serial.println("Modbus CtrlChrg (Slave2) Error");
+        logToOLED("Modbus CtrlChrg Error");
+        failedDevices += "Modbus CtrlChrg, ";
+    }
+
+    // Leave RS485 clean
+    RS485.end();
+
+    checkSD(false);
+
+
+
+
+    /// ---- Datalogger ---- ///
+    // --- Initialize SoftwareSerial for CR1000X ---
+    DataSerial.begin(DATALOGGER_BAUD, EspSoftwareSerial::SWSERIAL_8N1, DATALOGGER_RX, -1, false, 256);
+    DataSerial.enableRx(true);  // make sure receiver is active
+
+    devicesTotal++;
+    bool dataloggerOk = false;
+
+    // Clear any stale data first
+    while (DataSerial.available()) DataSerial.read();
+
+    // Wait briefly for a new frame (up to ~3 seconds)
+    unsigned long startCheck = millis();
+    String line = "";
+    while (millis() - startCheck < 3000) {
+        if (DataSerial.available()) {
+            line = DataSerial.readStringUntil('\n');
+            line.trim();
+            if (line.length() > 0) {
+                dataloggerOk = true;
+                break;
+            }
+        }
+    }
+
+    if (dataloggerOk) {
+        devicesActive++;
+        Serial.println("Datalogger Active");
+        logToOLED("Datalogger Active");
+    } else {
+        Serial.println("Datalogger Error");
+        logToOLED("Datalogger Error");
+        failedDevices += "Datalogger, ";
+    }
+
+    checkSD(false);
+
+
+
+
+    ///..........GSM Connection..........//
+
+    // Set modem reset, enable, power pins
+    pinMode(MODEM_PWKEY, OUTPUT);
+    pinMode(MODEM_RST, OUTPUT);
+    pinMode(MODEM_POWER_ON, OUTPUT);
+    digitalWrite(MODEM_PWKEY, LOW);
+    digitalWrite(MODEM_RST, HIGH);
+    digitalWrite(MODEM_POWER_ON, HIGH);
+
+    delay(3000);
+
+    // Set GSM module baud rate and UART pins
+    SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
+    //SerialAT.begin(9600, SERIAL_8N1, MODEM_RX, MODEM_TX);
+    delay(3000);
+
+    // Restart SIM800 module, it takes quite some time
+    // To skip it, call init() instead of restart()
+    Serial.println("Initializing modem...");
+    logToOLED("Initializing modem...");
+    // modem.init();
+    GSMConnectionStatus = modem.restart();
+
+    // use modem.init() if you don't need the complete restart
+
+    // --- Confirm modem response ---
+    devicesTotal++;
+    if (GSMConnectionStatus) {
+      devicesActive++;
+      Serial.println("Modem responded OK");
+      logToOLED("Modem OK");
+    } else {
+      Serial.println("Modem not responding, retrying with init()...");
+      logToOLED("Modem retrying init...");
+      GSMConnectionStatus = modem.init();
+      delay(4000);
+      if (GSMConnectionStatus) {
+        devicesActive++;
+        Serial.println("Modem recovered using init()");
+        logToOLED("Modem recovered");
+      } else {
+        Serial.println("Modem failed to start, check power/wiring!");
+        logToOLED("Modem failed");
+        failedDevices += "Modem, ";
+      }
+    }
+
+    checkSD(false);
+    delay(10000);
+
+    // Unlock your SIM card with a PIN if needed
+    if (strlen(simPIN) && modem.getSimStatus() != 3 ) {
+      modem.simUnlock(simPIN);
+    }
+
+    // Turn off network status lights to reduce current consumption
+    turnOffNetlight();
+    checkSD(false);
+
+    ///..........Control LED Indicators..........//
+    onBlue();
+    onGreen();
+
+    ///..........Transmit Local Data To Server..........//
+    checkAndSendLocalDataToServer();
+
+    ///...............Deep Sleep............//
+    //    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    //    Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
+
+
+
+    //int ccount = 0;
+
+
+
+    String summary = "Devices: " + String(devicesActive) + "/" + String(devicesTotal);
+    Serial.println(summary);
+    logToOLED(summary);
+
+    if (failedDevices.length() > 0) {
+        // remove trailing comma + space
+        failedDevices.remove(failedDevices.length() - 2);
+        Serial.println("Failed: " + failedDevices);
+        logToOLED("Failed: " + failedDevices);
+    } else {
+        Serial.println("All devices OK");
+        logToOLED("All devices OK");
+    }
+
+
+
+
+
+}
 
 void loop() {
 
@@ -640,15 +888,21 @@ void loop() {
   ///...........RTC.............//
   // setTimezone("GMT0");
   getTimeAndDate();
+ 
+///......Datalogger...........///
+  readFromDatalogger();
 
+
+  /*
   // Reset rainfall amount and relay tick counter at midnight/new day
   if(timeHourInt == 0 && timeMinInt < 3){
     ws1.resetRain();
     relayTickCounter = 0;
   }
 
-  ///..........Weather Station..........//  
+  ///.......... Old Weather Station..........//  
   readWeatherStationData();
+  */
 
   ///..........Prepare URL for POST Request..........//
   String requestData = "user_id=" + userID + "&device_id="+ deviceID + "&massOfDust=" + String(massOfDustOnPanel) + "&tempOfPanelControl=" + String(controlPanelTemperature)+ "&tempOfPanelTest=" + String(testPanelTemperature) + "&ambientTemp=" + String(shtTemperature) + "&humidity=" + String(shtHumidity) + 
@@ -1062,14 +1316,14 @@ void checkAndSendLocalDataToServer(){
         // if GSM is connected send data to server
         if(sendLocalData(localData)){
           // if sending is successful, clear local data
-          localData = "";
-          writeFile(SD,"/localdata.txt",localData.c_str());
+          SD.remove("/localdata.txt");
+          writeFile(SD,"/localdata.txt","");
           localDataAvailable = false;
           Serial.println("Local Data Transmitted Successfully.");
         }else
         {
           // if sending is unsuccessful update local data
-          writeFile(SD,"/localdata.txt",localData.c_str());
+          //appendFile(SD,"/localdata.txt",localData.c_str());
           Serial.print("Local Data Transmission Failed.");
         }
         
@@ -1104,6 +1358,8 @@ void readPMSensorData(){
         Serial.print("Error trying to execute readMeasuredValues(): ");
         errorToString(error, errorMessage, 256);
         Serial.println(errorMessage);
+        
+
     } else {
         Serial.print("MassConcentrationPm1p0:");
         Serial.print(massConcentrationPm1p0);
@@ -1226,9 +1482,10 @@ void readModbusAndCompute() {
 
   // ================== Test Setup (Slave 1) ==================
   RS485.end(); // Stop Serial communication
+  delay(10);
   RS485.begin(9600, SERIAL_8N1, RS485_RX_SLAVE_1, RS485_TX_SLAVE_1); // Initialize pins for Slave 1
   node.begin(1, RS485); // Set Slave ID to 1
-  delay(20);
+  delay(10);
 
   // Read Panel Voltage
   result = node.readHoldingRegisters(PANEL_VOLTAGE, 1);
@@ -1269,9 +1526,10 @@ void readModbusAndCompute() {
 
   // ================== Control Setup (Slave 2) ==================
   RS485.end(); // Stop Serial communication
+  delay(600);
   RS485.begin(9600, SERIAL_8N1, RS485_RX_SLAVE_2, RS485_TX_SLAVE_2); // Initialize pins for Slave 2
   node.begin(2, RS485); // Set Slave ID to 2
-  delay(20);
+  delay(10);
 
   // Read Panel Voltage
   result = node.readHoldingRegisters(PANEL_VOLTAGE, 1);
@@ -1342,61 +1600,37 @@ void readModbusAndCompute() {
 
 
 
-void readWeatherStationData(){
-    Serial.print("Weather Station\n");
-    timer = millis();
-    float rainFallAmount = 0;
-    
-    long windSpeed;
 
-    ws1.update(); //Call this every cycle in your main loop to update all the sensor values
+// ==== Datalogger ====//
+void readFromDatalogger() {
+  if (DataSerial.available()) {
+    String line = DataSerial.readStringUntil('\n');
+    line.trim(); // remove CR/LF whitespace
 
-    if(timer > nextCalc)
-    {
+    if (line.length() > 0) {
+      Serial.println("Raw Line: " + line);
 
-    nextCalc = timer + CALC_INTERVAL;
-    rainFallAmount = ws1.getRain();
-    windSpeed = ws1.getWindSpeed();
-    windDirection = ws1.getWindDirection();
-    windGust = ws1.getWindGust();
+      // Expected format: "<irradiance>,YYYY/MM/DD hh:mm:ss"
+      int commaIndex = line.indexOf(',');
+      if (commaIndex > 0) {
+        String irrStr = line.substring(0, commaIndex);
+        String timeStr = line.substring(commaIndex + 1);
 
-    //     windSpeed / 10 will give the integer component of the wind speed
-    //     windSpeed % 10 will give the fractional component of the wind speed
+        irradiance = irrStr.toFloat();
+        irradianceTimestamp = timeStr;
 
-    Serial.print("Wind speed: ");
-    Serial.print(windSpeed / 10);
-    Serial.print('.');
-    Serial.print(windSpeed % 10);
-    Serial.println(" ");
-
-    windSpeedD = (windSpeed / 10) + (0.1 * (windSpeed % 10));
-
-    //Serial.print("Gusting at: ");
-    //Serial.print(windGust / 10);
-    //Serial.print('.');
-    //Serial.print(windGust % 10);
-    //Serial.println("");
-
-    Serial.print("Wind Direction: ");
-    Serial.print(windDirection);
-    Serial.println("");
-
-    Serial.print("Total Rain: ");
-    rainFallAmount = rainFallAmount/1000;
-    Serial.println((float) rainFallAmount);
-
-    rainAmount = amountOfRainPref + rainFallAmount;
-
-    //Serial.print("Analog Value: ");
-    //Serial.println(map(analogRead(VANE_PIN), 0, 4096, 0, 1024));
-
-    Serial.print("rainAmount ");
-    Serial.println(rainAmount);
-
-//    sendDataStatus = 1;
-
+        Serial.print("Parsed Irradiance (W/m²): ");
+        Serial.println(irradiance);
+        Serial.print("Timestamp: ");
+        Serial.println(irradianceTimestamp);
+        Serial.println("-------------------------------");
+      } else {
+        Serial.println("Unexpected format received on UART");
+      }
+    }
   }
 }
+
 
 void readSHT35Sensor(){
   if (sht.readSample()) {
@@ -1416,31 +1650,42 @@ void readSHT35Sensor(){
   }
 }
 
-// Initialize SD card
-void setupSDCard()
-{
-  hspi.begin(HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS); //SCLK, MISO, MOSI, SS
-  // spi.begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS); //SCLK, MISO, MOSI, SS
-  //  pinMode(hspi.pinSS(), OUTPUT); //HSPI SS
+// Initialize SD card with retry
+void setupSDCard() {
 
-  if (!SD.begin(HSPI_SS,hspi)) {
-    Serial.println("Card Mount Failed");
+  hspi.begin(HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS); // SCLK, MISO, MOSI, SS
+
+  const int retries = 3;
+  const int delayMs = 200;
+  bool mounted = false;
+
+  for (int i = 0; i < retries; i++) {
+    if (SD.begin(HSPI_SS, hspi)) {
+      mounted = true;
+      break;
+    } else {
+      Serial.println("SD mount failed, retrying...");
+      delay(delayMs);
+    }
+  }
+
+  if (!mounted) {
+    Serial.println("Card Mount Failed after retries");
     return;
   }
 
   uint8_t cardType = SD.cardType();
-
-  if(cardType == CARD_NONE){
+  if (cardType == CARD_NONE) {
     Serial.println("No SD card attached");
     return;
   }
 
   Serial.print("SD Card Type: ");
-  if(cardType == CARD_MMC){
+  if (cardType == CARD_MMC) {
     Serial.println("MMC");
-  } else if(cardType == CARD_SD){
+  } else if (cardType == CARD_SD) {
     Serial.println("SDSC");
-  } else if(cardType == CARD_SDHC){
+  } else if (cardType == CARD_SDHC) {
     Serial.println("SDHC");
   } else {
     Serial.println("UNKNOWN");
@@ -1450,15 +1695,57 @@ void setupSDCard()
   Serial.printf("SD Card Size: %lluMB\n", cardSize);
 }
 
+
+
+
+// Self-healing SD card check
+// =======================================================
+bool checkSD(bool verbose) {
+  // Quick test: try opening a test file
+  File file = SD.open("/.check", FILE_WRITE);
+  if (file) {
+    file.println("ping");
+    file.close();
+    if (verbose) Serial.println("SD check passed");
+    return true;
+  }
+
+  // If we got here, the SD failed — attempt recovery
+  if (verbose) Serial.println("SD access failed, remounting...");
+
+  SD.end();       // force release
+  delay(200);
+
+  if (!SD.begin(HSPI_SS, hspi)) {
+    if (verbose) Serial.println("SD re-mount failed");
+    return false;
+  }
+
+  if (verbose) {
+    Serial.println("SD re-mounted successfully");
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    Serial.printf("SD Size: %llu MB\n", cardSize);
+  }
+  return true;
+}
+
 // Write to the SD card
 void writeFile(fs::FS &fs, const char * path, const char * message){
-  Serial.printf("Writing file: %s\n", path);
+  if (!checkSD()) return;   // ensure SD is mounted
 
+  Serial.printf("Writing file: %s\n", path);
   File file = fs.open(path, FILE_WRITE);
+
   if(!file) {
-    Serial.println("Failed to open file for writing");
-    return;
+    Serial.println("Failed to open file for writing, retrying...");
+    if (!checkSD()) return;    // try remount once more
+    file = fs.open(path, FILE_WRITE);
+    if(!file) {
+      Serial.println("Write retry failed");
+      return;
+    }
   }
+
   if(file.print(message)) {
     Serial.println("File written");
   } else {
@@ -1467,15 +1754,26 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
   file.close();
 }
 
+
+
+
 // Append data to the SD card
 void appendFile(fs::FS &fs, const char * path, const char * message) {
-  Serial.printf("Appending to file: %s\n", path);
+  if (!checkSD()) return;   // ensure SD is mounted
 
+  Serial.printf("Appending to file: %s\n", path);
   File file = fs.open(path, FILE_APPEND);
+
   if(!file) {
-    Serial.println("Failed to open file for appending");
-    return;
+    Serial.println("Failed to open file for appending, retrying...");
+    if (!checkSD()) return;   // try remount once more
+    file = fs.open(path, FILE_APPEND);
+    if(!file) {
+      Serial.println("Append retry failed");
+      return;
+    }
   }
+
   if(file.print(message)) {
     Serial.println("Message appended");
   } else {
@@ -1484,111 +1782,34 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
   file.close();
 }
 
+
+
 String readFile(fs::FS &fs, const char * path){
+  if (!checkSD()) return String();  // ensure SD is mounted
 
   String fileData = "";
-
   Serial.printf("Reading file: %s\n", path);
 
   File file = fs.open(path);
   if(!file){
-      Serial.println("Failed to open file for reading");
-      return String();
+      Serial.println("Failed to open file for reading, retrying...");
+      if (!checkSD()) return String();  // try remount once more
+      file = fs.open(path);
+      if(!file) {
+        Serial.println("Read retry failed");
+        return String();
+      }
   }
 
-  // Serial.print("Read from file: ");
   while(file.available()){
       fileData = file.readStringUntil('\n');
       break;
   }
   file.close();
-
   return fileData;
 }
 
-/*
 
-bool sendDataToServer(String var) {
-  if (WiFi.status() == WL_CONNECTED) {
-    String serverPath = var;
-    // Your Domain name with URL path or IP address with path
-    String responseText = httpGETRequest(serverPath.c_str());
-    Serial.println(responseText.c_str());
-    if(strcmp(responseText.c_str(), "Success") == 0){
-      return true;
-    }else{
-      return false;
-    }+
-  }
-
-}
-
-String httpGETRequest(const char* serverName) {
-
-//  WiFiClient client;
-
-  HTTPClient http;
-
-  // Your Domain name with URL path or IP address with path
-  http.begin(client, serverName);
-
-  // Send HTTP POST request
-  int httpResponseCode = http.GET();
-  String payload = "{}";
-
-  if (httpResponseCode > 0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    payload = http.getString();
-  }
-  else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
-  }
-
-  // Free resources
-  http.end();
-  return payload;
-}
-
-*/
-
-
-/*void dischargeLoads(float testBatteryLevel, float controlBatteryLevel) {
-  static int testBatteryLevelCounter = 0;
-  static int controlBatteryLevelCounter = 0;
-
-  const int batteryThreshold = 13.0;
-
-
-  if(testBatteryLevel >= batteryThreshold){
-    testBatteryLevelCounter++;
-  }else
-  {
-    testBatteryLevelCounter = 0;
-  }
-
-  if(controlBatteryLevel >= batteryThreshold){
-    controlBatteryLevelCounter++;
-  }else
-  {
-    controlBatteryLevelCounter = 0;
-  }
-
-  if (testBatteryLevelCounter >= 5)
-  {
-    testLoadRelayStatus("ON");
-  }else{
-    testLoadRelayStatus("OFF");
-  }
-
-  if (controlBatteryLevelCounter >= 5)
-  {
-    controlLoadRelayStatus("ON");
-  }else{
-    controlLoadRelayStatus("OFF");
-  } 
-}*/
 
 void dischargeLoads(float testBatteryChargePercent, float controlBatteryChargePercent) {
   // Keep track of consecutive readings above threshold
@@ -1628,6 +1849,46 @@ void dischargeLoads(float testBatteryChargePercent, float controlBatteryChargePe
 }
 
 
+//OLED FUNCTION
+void logToOLED(String msg) {
+  // break message into lines
+  int start = 0;
+  while (start < msg.length()) {
+    int end = start + OLED_LINE_CHARS;
+    if (end > msg.length()) end = msg.length();
+    String line = msg.substring(start, end);
+
+    // shift buffer up
+    for (int i = 0; i < MAX_LINES - 1; i++) {
+      logBuffer[i] = logBuffer[i + 1];
+    }
+    logBuffer[MAX_LINES - 1] = line;
+
+    // draw
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SH110X_WHITE);
+    int y = 0;
+    for (int i = 0; i < MAX_LINES; i++) {
+      if (logBuffer[i].length() > 0) {
+        display.setCursor(0, y);
+        display.println(logBuffer[i]);
+      }
+      y += 10; // vertical spacing
+    }
+    display.display();
+
+    // serial output for each line too
+    //Serial.println(line);
+
+    start = end; // move to next chunk
+  }
+}
+
+
+
+
+
 void turnOffNetlight()
 {
   Serial.println("Turning off SIM800 Red LED...");
@@ -1639,3 +1900,6 @@ void turnOnNetlight()
   Serial.println("Turning on SIM800 Red LED...");
   modem.sendAT("+CNETLIGHT=1");
 }
+
+
+
