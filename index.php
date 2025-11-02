@@ -3,7 +3,7 @@
   if(isset($_SESSION['account_id'])){
     $accountID = $_SESSION['account_id'];
   }else{
-    header("Location: login.php");
+    header("Location: login_test.php");
     exit();
   }
 ?>

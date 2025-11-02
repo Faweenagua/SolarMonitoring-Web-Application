@@ -120,7 +120,7 @@
 								<div class="border p-4 rounded">
 									<div class="text-center">
 										<h3 class="">Sign in</h3>
-										<p>Don't have an account yet? <a href="signup.php">Sign up here</a>
+										<p>Don't have an account yet? <a href="signup_test.php">Sign up here</a>
 										</p>
 									</div>
 									<!-- <div class="d-grid">
@@ -134,7 +134,7 @@
 										<hr/>
 									</div>
 									<div class="form-body">
-										<form class="row g-3 form-signin" action="login.php" method="POST">
+										<form class="row g-3 form-signin" action="login_test.php" method="POST">
 											<div class="col-12">
 												<?php
 													if(!($msg == " ")){

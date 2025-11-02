@@ -86,7 +86,7 @@
 								<div class="border p-4 rounded">
 									<div class="text-center">
 										<h3 class="">Sign Up</h3>
-										<p>Already have an account? <a href="login.php">Sign in here</a>
+										<p>Already have an account? <a href="login_test.php">Sign in here</a>
 										</p>
 									</div>
 									<!-- <div class="d-grid">
@@ -100,7 +100,7 @@
 										<hr/>
 									</div>
 									<div class="form-body">
-										<form class="row g-3 form-signin" action="signup.php" method="POST">
+										<form class="row g-3 form-signin" action="signup_test.php" method="POST">
 											<div class="col-sm-6">
 												<label for="inputFirstName" class="form-label">First Name</label>
 												<input name="firstName" type="text" class="form-control" id="inputFirstName" placeholder="Enter first name">
@@ -122,6 +122,10 @@
 												<div class="input-group" id="show_hide_password">
 													<input name="password" type="password" class="form-control border-end-0" id="inputChoosePassword" placeholder="Enter Password"> <a href="javascript:;" class="input-group-text bg-transparent"><i class='bx bx-hide'></i></a>
 												</div>
+											</div>
+											<div class="col-sm-6">
+												<label for="inputDeviceID" class="form-label">Device ID</label>
+												<input name="deviceID" type="text" class="form-control" id="inputDeviceID" placeholder="Enter Your Device ID">
 											</div>
 											<div class="col-12">
 												<div class="form-check form-switch">

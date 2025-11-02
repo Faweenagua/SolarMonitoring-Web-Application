@@ -201,7 +201,7 @@ echo '
               <div class="dropdown-divider mb-0"></div>
             </li>
             <li>
-              <a class="dropdown-item" href="login.php"
+              <a class="dropdown-item" href="login_test.php"
                 ><i class="bx bx-log-out-circle"></i><span>Logout</span></a
               >
             </li>
