@@ -1,48 +1,81 @@
 <?php session_start(); ?>
 <?php include 'libraries/Database.php'; ?>
 <?php
+
+    $msg = " ";
+
+    if(isset($_SESSION['account_id'])){
+        session_destroy();
+        session_start();
+    }else{
+
+    }
+    
+
     if(isset($_POST['submit'])){
         $db = new Database();
 
-        $first_name = $db->escapeString($_POST['firstName']);
-        $last_name = $db->escapeString($_POST['lastName']);
-        $phone =  $db->escapeString($_POST['phoneNumber']);
-        $email =  $db->escapeString($_POST['emailAddress']);
+
+        $phone_email =  $db->escapeString($_POST['inputEmailAddress']);
         $password =  $db->escapeString($_POST['password']);
-		$deviceID = $db->escapeString($_POST['deviceID']);
-        $defaultProfilePicture = "auser.png";
+       
         
-        $pass_hash = password_hash($password,PASSWORD_BCRYPT);
+        $query1 = "SELECT ID,password,Firstname,Lastname,profilePicture FROM usersmejrnnsemfennjfr WHERE email = '$phone_email'";
+        $query2 = "SELECT ID,password,Firstname,Lastname,profilePicture FROM usersmejrnnsemfennjfr WHERE phoneNumber = '$phone_email'";
 
-        $query = "INSERT INTO usersmejrnnsemfennjfr (`Firstname`,`Lastname`,`email`,`password`,`phoneNumber`,`profilePicture`) 
-                                VALUES ('$first_name','$last_name','$email','$pass_hash','$phone','$defaultProfilePicture')";
+        $results = $db->select($query1);
 
-        if($db->insert($query)){
+        if($results == false){
+
+            $results = $db->select($query2);
+
+            if($results == false){
+                $msg = "Incorrect Phone Number/Email or Password, Try again!";
+            }else{
+                $data = $results->fetch_assoc();
+    
+                if(password_verify($password,$data['password'])){
+                    $_SESSION['account_id'] = $data['ID'];
+                    $_SESSION['first_name'] = $data['Firstname'];
+                    $_SESSION['last_name'] = $data['Lastname'];
+                    $_SESSION['profilePic'] = "assets/images/icons/".$data['profilePicture'];
+                    $_SESSION['login'] = 1;
+                    header("Location: index.php");
+                    exit();
+                }else{
+                    $msg = "Incorrect Phone Number/email or password, Try again!";
+                }
+    
+            }
+
+            /* 
             $id = $db->getInsertID();
+            $_SESSION['first_name'] = $first_name;
+            $_SESSION['last_name'] = $last_name;
+            $_SESSION['patient_id'] = $id;
 
-			if(strlen($deviceID) > 4){
-				$query2 = "INSERT INTO devicesoenjnjcdbbevebbre (`deviceID`,`accountID`) VALUES ('$deviceID','$id')";
+            header("Location: patient-index.php?msg=".urlencode('Complete'));
+            exit(); */
+            
+            // echo($id);
 
-				if($db->insert($query2)){
-					
-					// echo($id);
-				}else{
-					echo $db->error;
-				}
-			}
-			
-		    $_SESSION['first_name'] = $first_name;
-			$_SESSION['last_name'] = $last_name;
-			$_SESSION['account_id'] = $id;
-			$_SESSION['profilePic'] = "assets/images/icons/".$defaultProfilePicture;
-			$_SESSION['login'] = 1;
-			header("Location: index.php?msg=".urlencode('Registered'));
-			exit();
-			
-			
         }else{
-			echo $db->error;
-		}
+            $data = $results->fetch_assoc();
+
+            if(password_verify($password,$data['password'])){
+                $_SESSION['account_id'] = $data['ID'];
+                $_SESSION['first_name'] = $data['Firstname'];
+                $_SESSION['last_name'] = $data['Lastname'];
+                $_SESSION['profilePic'] = "assets/images/icons/".$data['profilePicture'];
+                $_SESSION['login'] = 1;
+                header("Location: index.php");
+                exit();
+            }else{
+                $msg = "Incorrect Email/Phone Number or Password, Try again!";
+            }
+
+        }
+
         
     }
 
@@ -74,64 +107,62 @@
 <body class="bg-theme bg-theme6">
 	<!--wrapper-->
 	<div class="wrapper">
-		<div class="d-flex align-items-center justify-content-center my-5 my-lg-0">
-			<div class="container">
-				<div class="row row-cols-1 row-cols-lg-2 row-cols-xl-2">
+		<div class="section-authentication-signin d-flex align-items-center justify-content-center my-5 my-lg-0">
+			<div class="container-fluid">
+				<div class="row row-cols-1 row-cols-lg-2 row-cols-xl-3">
 					<div class="col mx-auto">
-						<div class="my-4 text-center">
+						<div class="mb-4 text-center">
+						    
 							<!--<img src="assets/images/logo-img.png" width="180" alt="" />-->
 						</div>
 						<div class="card">
 							<div class="card-body">
 								<div class="border p-4 rounded">
 									<div class="text-center">
-										<h3 class="">Sign Up</h3>
-										<p>Already have an account? <a href="login.php">Sign in here</a>
+										<h3 class="">Sign in</h3>
+										<p>Don't have an account yet? <a href="signup_test.php">Sign up here</a>
 										</p>
 									</div>
 									<!-- <div class="d-grid">
 										<a class="btn my-4 shadow-sm btn-light disabled" aria-disabled="true" href="javascript:;"> <span class="d-flex justify-content-center align-items-center">
                           <img class="me-2" src="assets/images/icons/search.svg" width="16" alt="Image Description">
-                          <span>Sign Up with Google</span>
+                          <span>Sign in with Google</span>
 											</span>
-										</a> <a href="javascript:;" class="btn btn-light disabled" aria-disabled="true"><i class="bx bxl-facebook"></i>Sign Up with Facebook</a>
+										</a> <a href="javascript:;" class="btn btn-light disabled" aria-disabled="true"><i class="bx bxl-facebook"></i>Sign in with Facebook</a>
 									</div> -->
-									<div class="login-separater text-center mb-4"> <span>SIGN UP WITH EMAIL / PHONE NUMBER</span>
+									<div class="login-separater text-center mb-4"> <span>SIGN IN WITH EMAIL/PHONE NUMBER</span>
 										<hr/>
 									</div>
 									<div class="form-body">
-										<form class="row g-3 form-signin" action="signup.php" method="POST">
-											<div class="col-sm-6">
-												<label for="inputFirstName" class="form-label">First Name</label>
-												<input name="firstName" type="text" class="form-control" id="inputFirstName" placeholder="Enter first name">
-											</div>
-											<div class="col-sm-6">
-												<label for="inputLastName" class="form-label">Last Name</label>
-												<input name="lastName" type="text" class="form-control" id="inputLastName" placeholder="Enter last name">
+										<form class="row g-3 form-signin" action="login_test.php" method="POST">
+											<div class="col-12">
+												<?php
+													if(!($msg == " ")){
+														echo('<div class="text-danger text-center mt-0 pb-4">');
+														echo($msg);
+														echo('</div>');
+													}
+												?>
+												<label for="inputEmailAddress" class="form-label">Email Address / Phone Number</label>
+												<input name="inputEmailAddress" type="text" class="form-control" id="inputEmailAddress" placeholder="Email / Phone Number">
 											</div>
 											<div class="col-12">
-												<label for="inputEmailAddress" class="form-label">Email Address</label>
-												<input name="emailAddress" type="email" class="form-control" id="inputEmailAddress" placeholder="E.g user@example.com">
-											</div>
-											<div class="col-12">
-												<label for="inputEmailAddress" class="form-label">Phone Number</label>
-												<input name="phoneNumber" type="text" class="form-control" id="inputEmailAddress" placeholder="E.g 02xxxxxxxx">
-											</div>
-											<div class="col-12">
-												<label for="inputChoosePassword" class="form-label">Password</label>
+												<label for="inputChoosePassword" class="form-label">Enter Password</label>
 												<div class="input-group" id="show_hide_password">
 													<input name="password" type="password" class="form-control border-end-0" id="inputChoosePassword" placeholder="Enter Password"> <a href="javascript:;" class="input-group-text bg-transparent"><i class='bx bx-hide'></i></a>
 												</div>
 											</div>
-											<div class="col-12">
+											<div class="col-md-6">
 												<div class="form-check form-switch">
-													<input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked">
-													<label class="form-check-label" for="flexSwitchCheckChecked">I read and agree to Terms & Conditions</label>
+													<input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" checked>
+													<label class="form-check-label" for="flexSwitchCheckChecked">Remember Me</label>
 												</div>
 											</div>
+											<!-- <div class="col-md-6 text-end">	<a href="authentication-forgot-password.html">Forgot Password ?</a>
+											</div> -->
 											<div class="col-12">
 												<div class="d-grid">
-													<button type="submit" name="submit" class="btn btn-light"><i class='bx bx-user'></i>Sign up</button>
+													<button name="submit" type="submit" class="btn btn-light"><i class="bx bxs-lock-open"></i>Sign in</button>
 												</div>
 											</div>
 										</form>

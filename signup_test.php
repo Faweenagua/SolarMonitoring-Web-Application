@@ -9,7 +9,6 @@
         $phone =  $db->escapeString($_POST['phoneNumber']);
         $email =  $db->escapeString($_POST['emailAddress']);
         $password =  $db->escapeString($_POST['password']);
-		$deviceID = $db->escapeString($_POST['deviceID']);
         $defaultProfilePicture = "auser.png";
         
         $pass_hash = password_hash($password,PASSWORD_BCRYPT);
@@ -19,17 +18,6 @@
 
         if($db->insert($query)){
             $id = $db->getInsertID();
-
-			if(strlen($deviceID) > 4){
-				$query2 = "INSERT INTO devicesoenjnjcdbbevebbre (`deviceID`,`accountID`) VALUES ('$deviceID','$id')";
-
-				if($db->insert($query2)){
-					
-					// echo($id);
-				}else{
-					echo $db->error;
-				}
-			}
 			
 		    $_SESSION['first_name'] = $first_name;
 			$_SESSION['last_name'] = $last_name;
@@ -86,7 +74,7 @@
 								<div class="border p-4 rounded">
 									<div class="text-center">
 										<h3 class="">Sign Up</h3>
-										<p>Already have an account? <a href="login.php">Sign in here</a>
+										<p>Already have an account? <a href="login_test.php">Sign in here</a>
 										</p>
 									</div>
 									<!-- <div class="d-grid">
@@ -100,7 +88,7 @@
 										<hr/>
 									</div>
 									<div class="form-body">
-										<form class="row g-3 form-signin" action="signup.php" method="POST">
+										<form class="row g-3 form-signin" action="signup_test.php" method="POST">
 											<div class="col-sm-6">
 												<label for="inputFirstName" class="form-label">First Name</label>
 												<input name="firstName" type="text" class="form-control" id="inputFirstName" placeholder="Enter first name">
