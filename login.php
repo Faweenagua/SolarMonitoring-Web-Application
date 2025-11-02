@@ -1,4 +1,9 @@
 <?php session_start(); ?>
+<?php 
+    // Redirect to test login page
+    header("Location: login_test.php");
+    exit();
+?>
 <?php include 'libraries/Database.php'; ?>
 <?php
 

@@ -1,4 +1,9 @@
 <?php session_start(); ?>
+<?php 
+    // Redirect to test signup page
+    header("Location: signup_test.php");
+    exit();
+?>
 <?php include 'libraries/Database.php'; ?>
 <?php
     if(isset($_POST['submit'])){
